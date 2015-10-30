@@ -22,86 +22,31 @@
 #define stepper_h 
 
 #include "planner.h"
-#include "slave_comms.h"
-
-#ifdef REPRAPPRO_MULTIMATERIALS
-
-#define WRITE_E_STEP(v) { if(current_block->active_extruder == 2) { slaveRemoteStep(2, v); } else { if(current_block->active_extruder == 1) { slaveRemoteStep(1, v); } else { WRITE(E0_STEP_PIN, v); }}}
-#define NORM_E_DIR() { if(current_block->active_extruder == 2) { slaveRemoteDir(2, true); } else { if(current_block->active_extruder == 1) { slaveRemoteDir(1, true); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}}
-#define REV_E_DIR() { if(current_block->active_extruder == 2) { slaveRemoteDir(2, false); } else { if(current_block->active_extruder == 1) { slaveRemoteDir(1, false); } else { WRITE(E0_DIR_PIN, INVERT_E0_DIR); }}}
-
-
-/*
-inline void WRITE_E_STEP(int8_t v) 
-{ 
-	if(current_block->active_extruder == 2) 
-	{ 
-		slaveRemoteStep(2, v);  //E2_STEP_PIN, v); 
-	} else 
-	{ 
-		if(current_block->active_extruder == 1) 
-		{ 
-			slaveRemoteStep(1, v); //E1_STEP_PIN, v); 
-		} else 
-		{ 
-			WRITE(E0_STEP_PIN, v); 
-		}
-	}
-}
-
-inline void NORM_E_DIR() 
-{ 
-	if(current_block->active_extruder == 2) 
-	{ 
-		slaveRemoteDir(2, true); //!E2_DIR_PIN, INVERT_E2_DIR); 
-	} else 
-	{ 
-		if(current_block->active_extruder == 1) 
-		{ 
-			slaveRemoteDir(1, true); //!E1_DIR_PIN, INVERT_E1_DIR); 
-		} else 
-		{ 
-			WRITE(E0_DIR_PIN, !INVERT_E0_DIR); 
-		}
-	}
-}
-
-inline void REV_E_DIR() 
-{ 
-	if(current_block->active_extruder == 2) 
-	{ 
-		slaveRemoteDir(2, false); //E2_DIR_PIN, INVERT_E2_DIR); 
-	} else 
-	{ 
-		if(current_block->active_extruder == 1) 
-		{ 
-			slaveRemoteDir(1, false); //E1_DIR_PIN, INVERT_E1_DIR); 
-		} else 
-		{ 
-			WRITE(E0_DIR_PIN, INVERT_E0_DIR); 
-		}
-	}
-}
-*/
-#else
 
 #if EXTRUDERS > 2
   #define WRITE_E_STEP(v) { if(current_block->active_extruder == 2) { WRITE(E2_STEP_PIN, v); } else { if(current_block->active_extruder == 1) { WRITE(E1_STEP_PIN, v); } else { WRITE(E0_STEP_PIN, v); }}}
-  #define NORM_E_DIR() { if(current_block->active_extruder == 2) { WRITE(!E2_DIR_PIN, INVERT_E2_DIR); } else { if(current_block->active_extruder == 1) { WRITE(!E1_DIR_PIN, INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}}
+  #define NORM_E_DIR() { if(current_block->active_extruder == 2) { WRITE(E2_DIR_PIN, !INVERT_E2_DIR); } else { if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, !INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}}
   #define REV_E_DIR() { if(current_block->active_extruder == 2) { WRITE(E2_DIR_PIN, INVERT_E2_DIR); } else { if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, INVERT_E0_DIR); }}}
 #elif EXTRUDERS > 1
-  #define WRITE_E_STEP(v) { if(current_block->active_extruder == 1) { WRITE(E1_STEP_PIN, v); } else { WRITE(E0_STEP_PIN, v); }}
-  #define NORM_E_DIR() { if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, !INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}
-  #define REV_E_DIR() { if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, INVERT_E0_DIR); }}
+  #ifndef DUAL_X_CARRIAGE
+    #define WRITE_E_STEP(v) { if(current_block->active_extruder == 1) { WRITE(E1_STEP_PIN, v); } else { WRITE(E0_STEP_PIN, v); }}
+    #define NORM_E_DIR() { if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, !INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}
+    #define REV_E_DIR() { if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, INVERT_E0_DIR); }}
+  #else
+    extern bool extruder_duplication_enabled;
+    #define WRITE_E_STEP(v) { if(extruder_duplication_enabled) { WRITE(E0_STEP_PIN, v); WRITE(E1_STEP_PIN, v); } else if(current_block->active_extruder == 1) { WRITE(E1_STEP_PIN, v); } else { WRITE(E0_STEP_PIN, v); }}
+    #define NORM_E_DIR() { if(extruder_duplication_enabled) { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); WRITE(E1_DIR_PIN, !INVERT_E1_DIR); } else if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, !INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, !INVERT_E0_DIR); }}
+    #define REV_E_DIR() { if(extruder_duplication_enabled) { WRITE(E0_DIR_PIN, INVERT_E0_DIR); WRITE(E1_DIR_PIN, INVERT_E1_DIR); } else if(current_block->active_extruder == 1) { WRITE(E1_DIR_PIN, INVERT_E1_DIR); } else { WRITE(E0_DIR_PIN, INVERT_E0_DIR); }}
+  #endif  
 #else
   #define WRITE_E_STEP(v) WRITE(E0_STEP_PIN, v)
   #define NORM_E_DIR() WRITE(E0_DIR_PIN, !INVERT_E0_DIR)
   #define REV_E_DIR() WRITE(E0_DIR_PIN, INVERT_E0_DIR)
 #endif
 
+#ifdef ABORT_ON_ENDSTOP_HIT_FEATURE_ENABLED
+extern bool abort_on_endstop_hit;
 #endif
-
-
 
 // Initialize and start the stepper motor subsystem
 void st_init();
@@ -116,13 +61,18 @@ void st_set_e_position(const long &e);
 // Get current position in steps
 long st_get_position(uint8_t axis);
 
+#ifdef ENABLE_AUTO_BED_LEVELING
+// Get current position in mm
+float st_get_position_mm(uint8_t axis);
+#endif  //ENABLE_AUTO_BED_LEVELING
+
 // The stepper subsystem goes to sleep when it runs out of things to execute. Call this
 // to notify the subsystem that it is time to go to work.
 void st_wake_up();
 
   
-void checkHitEndstops(); //call from somwhere to create an serial error message with the locations the endstops where hit, in case they were triggered
-void endstops_hit_on_purpose(); //avoid creation of the message, i.e. after homeing and before a routine call of checkHitEndstops();
+void checkHitEndstops(); //call from somewhere to create an serial error message with the locations the endstops where hit, in case they were triggered
+void endstops_hit_on_purpose(); //avoid creation of the message, i.e. after homing and before a routine call of checkHitEndstops();
 
 void enable_endstops(bool check); // Enable/disable endstop checking
 
@@ -131,9 +81,21 @@ void checkStepperErrors(); //Print errors detected by the stepper
 void finishAndDisableSteppers();
 
 extern block_t *current_block;  // A pointer to the block currently being traced
-extern volatile long endstops_trigsteps[];
-extern volatile bool endstop_z_hit;
-extern bool old_z_min_endstop;
 
 void quickStop();
+
+void digitalPotWrite(int address, int value);
+void microstep_ms(uint8_t driver, int8_t ms1, int8_t ms2);
+void microstep_mode(uint8_t driver, uint8_t stepping);
+void digipot_init();
+void digipot_current(uint8_t driver, int current);
+void microstep_init();
+void microstep_readings();
+
+#ifdef BABYSTEPPING
+  void babystep(const uint8_t axis,const bool direction); // perform a short step with a single stepper motor, outside of any convention
+#endif
+     
+
+
 #endif

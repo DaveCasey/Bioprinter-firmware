@@ -44,6 +44,14 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
   if (angular_travel < 0) { angular_travel += 2*M_PI; }
   if (isclockwise) { angular_travel -= 2*M_PI; }
   
+  //20141002:full circle for G03 did not work, e.g. G03 X80 Y80 I20 J0 F2000 is giving an Angle of zero so head is not moving
+  //to compensate when start pos = target pos && angle is zero -> angle = 2Pi
+  if (position[axis_0] == target[axis_0] && position[axis_1] == target[axis_1] && angular_travel == 0)
+  {
+	  angular_travel += 2*M_PI;
+  }
+  //end fix G03
+  
   float millimeters_of_travel = hypot(angular_travel*radius, fabs(linear_travel));
   if (millimeters_of_travel < 0.001) { return; }
   uint16_t segments = floor(millimeters_of_travel/MM_PER_ARC_SEGMENT);
@@ -125,17 +133,7 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
     arc_target[axis_linear] += linear_per_segment;
     arc_target[E_AXIS] += extruder_per_segment;
 
-    if (min_software_endstops) {
-      if (arc_target[X_AXIS] < X_HOME_POS) arc_target[X_AXIS] = X_HOME_POS;
-      if (arc_target[Y_AXIS] < Y_HOME_POS) arc_target[Y_AXIS] = Y_HOME_POS;
-      if (arc_target[Z_AXIS] < Z_HOME_POS) arc_target[Z_AXIS] = Z_HOME_POS;
-    }
-
-    if (max_software_endstops) {
-      if (arc_target[X_AXIS] > max_length[X_AXIS]) arc_target[X_AXIS] = max_length[X_AXIS];
-      if (arc_target[Y_AXIS] > max_length[Y_AXIS]) arc_target[Y_AXIS] = max_length[Y_AXIS];
-      if (arc_target[Z_AXIS] > max_length[Z_AXIS]) arc_target[Z_AXIS] = max_length[Z_AXIS];
-    }
+    clamp_to_software_endstops(arc_target);
     plan_buffer_line(arc_target[X_AXIS], arc_target[Y_AXIS], arc_target[Z_AXIS], arc_target[E_AXIS], feed_rate, extruder);
     
   }
